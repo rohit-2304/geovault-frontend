@@ -146,6 +146,7 @@ const RecipientDashboard = () => {
             icon: 'location_off',
             title: 'Outside Geo-Fence',
             message: serverMsg || 'You are outside the permitted area. Move within 50 metres of the sender and try again.',
+            distanceMetres: err?.response?.data?.distanceMetres ?? null,
           });
         } else if (code === 'GEO_EXPIRED') {
           setGeoError({
@@ -228,6 +229,22 @@ const RecipientDashboard = () => {
                   <h2 className="font-headline font-black text-2xl uppercase tracking-tighter mb-2">{geoError.title}</h2>
                   <p className="font-body text-sm text-secondary max-w-sm leading-relaxed">{geoError.message}</p>
                 </div>
+
+                {/* Distance badge — only for GEO_OUT_OF_RANGE */}
+                {geoError.distanceMetres != null && (
+                  <div className="w-full border-4 border-black bg-surface-container-low p-4 text-center hard-shadow">
+                    <p className="font-label text-[10px] uppercase tracking-widest text-secondary mb-1">Your distance from anchor</p>
+                    <p className="font-headline font-black text-4xl tracking-tighter">
+                      {geoError.distanceMetres >= 1000
+                        ? `${(geoError.distanceMetres / 1000).toFixed(2)} km`
+                        : `${geoError.distanceMetres} m`}
+                    </p>
+                    <p className="font-label text-[10px] uppercase tracking-widest text-secondary mt-1">
+                      must be within <span className="font-bold text-primary">50 m</span> to unlock
+                    </p>
+                  </div>
+                )}
+
                 {/* Terminal-style error line */}
                 <div className="w-full bg-surface-container-low border-2 border-primary p-4 text-left">
                   <p className="font-label text-xs uppercase text-secondary">&gt; status: <span className="text-error font-bold">REJECTED</span></p>
