@@ -65,8 +65,9 @@ const STEP_LABELS = {
 
 const RecipientDashboard = () => {
   const { vaultId } = useParams();
-  const [status, setStatus] = useState('init');         // current step key
+  const [status, setStatus] = useState('init');
   const [errorMsg, setErrorMsg] = useState('');
+  const [geoError, setGeoError] = useState(null); // { icon, title, message }
   const [fileName, setFileName] = useState('');
   const [fileSize, setFileSize] = useState(0);
   const [decryptedUrl, setDecryptedUrl] = useState(null);
@@ -137,7 +138,36 @@ const RecipientDashboard = () => {
 
       } catch (err) {
         console.error('[Recipient] Error:', err);
-        setErrorMsg('Access Denied: ' + err.message);
+        // Read the structured error code from the backend 403 response
+        const code = err?.response?.data?.code;
+        const serverMsg = err?.response?.data?.error;
+        if (code === 'GEO_OUT_OF_RANGE') {
+          setGeoError({
+            icon: 'location_off',
+            title: 'Outside Geo-Fence',
+            message: serverMsg || 'You are outside the permitted area. Move within 50 metres of the sender and try again.',
+          });
+        } else if (code === 'GEO_EXPIRED') {
+          setGeoError({
+            icon: 'timer_off',
+            title: 'Vault Expired',
+            message: serverMsg || 'This vault has expired. Ask the sender to create a new link.',
+          });
+        } else if (code === 'GEO_NOT_FOUND') {
+          setGeoError({
+            icon: 'search_off',
+            title: 'Vault Not Found',
+            message: serverMsg || 'This vault does not exist or has already been used.',
+          });
+        } else if (code === 'GEO_SPOOFING') {
+          setGeoError({
+            icon: 'gpp_bad',
+            title: 'Location Mismatch Detected',
+            message: serverMsg || 'Your GPS coordinates do not match your network location.',
+          });
+        } else {
+          setErrorMsg(serverMsg || err.message);
+        }
       }
     };
 
@@ -176,8 +206,46 @@ const RecipientDashboard = () => {
             </div>
           </div>
 
+          {/* ── Geo-Fence Error Card (replaces main window on 403) ── */}
+          {geoError && (
+            <div className="bg-surface border-2 border-primary rounded-none hard-shadow overflow-hidden">
+              {/* Title bar */}
+              <div className="bg-primary px-4 py-2 flex items-center justify-between">
+                <div className="flex gap-2">
+                  <div className="w-3 h-3 rounded-full border border-on-primary opacity-60"></div>
+                  <div className="w-3 h-3 rounded-full border border-on-primary opacity-60"></div>
+                  <div className="w-3 h-3 rounded-full border border-on-primary opacity-60"></div>
+                </div>
+                <span className="font-label text-xs font-bold text-on-primary uppercase tracking-widest">Access Denied</span>
+                <div className="w-12"></div>
+              </div>
+              {/* Body */}
+              <div className="p-8 md:p-12 flex flex-col items-center text-center gap-6">
+                <div className="w-24 h-24 border-4 border-black bg-surface-container-low flex items-center justify-center hard-shadow">
+                  <span className="material-symbols-outlined text-5xl">{geoError.icon}</span>
+                </div>
+                <div>
+                  <h2 className="font-headline font-black text-2xl uppercase tracking-tighter mb-2">{geoError.title}</h2>
+                  <p className="font-body text-sm text-secondary max-w-sm leading-relaxed">{geoError.message}</p>
+                </div>
+                {/* Terminal-style error line */}
+                <div className="w-full bg-surface-container-low border-2 border-primary p-4 text-left">
+                  <p className="font-label text-xs uppercase text-secondary">&gt; status: <span className="text-error font-bold">REJECTED</span></p>
+                  <p className="font-label text-xs uppercase text-secondary">&gt; reason: <span className="text-primary font-bold">{geoError.title}</span></p>
+                </div>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full bg-primary text-on-primary font-label font-bold text-sm py-4 uppercase tracking-widest hard-shadow hard-shadow-active transition-all flex items-center justify-center gap-2"
+                >
+                  <span className="material-symbols-outlined text-on-primary text-sm">refresh</span>
+                  Try Again
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* ── Main Window ── */}
-          <div className="bg-surface border-2 border-primary rounded-none hard-shadow overflow-hidden">
+          {!geoError && <div className="bg-surface border-2 border-primary rounded-none hard-shadow overflow-hidden">
 
             {/* Window Title Bar */}
             <div className="bg-primary px-4 py-2 flex items-center justify-between border-b-2 border-primary">
@@ -282,7 +350,7 @@ const RecipientDashboard = () => {
               )}
 
             </div>
-          </div>
+          </div>}
 
           {/* ── Metadata strip ── */}
           <div className="mt-8 grid grid-cols-2 gap-4">
